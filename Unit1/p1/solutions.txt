@@ -1,0 +1,51 @@
+############################################################
+
+Part 0:
+The program is receiving the first 8 bytes from the UART port, and is then transmitting those same 8 bytes
+back to the UART port
+
+############################################################
+
+Part 1:
+Yes, ommitting the while loop cycles, both for loops take exactly: 15 iterations (1 MMIO op + 5 normal ops)
+
+############################################################
+
+Part 2:
+Each while loop iteration takes 1 MMIO op and 3 normal ops, meaning 13 cycles total
+
+A successful for loop iteration takes 13 + 15 = 28 cycles
+
+So for each character, we have total_cycles = successful_cycle + failed_cycle * 10, meaning our total is:
+28 + 13 * 10 = 158 cycles per character receive
+
+There are 8 characters so:
+8 * 158 = 1264 cycles
+
+Since the transmission is an exact mirror:
+1264*2 = 2528 cycles total
+
+############################################################
+
+Part 3:
+
+To constantly receive data from the UART port, I would implement a primitive busy-wait solutation that follows the same
+structure as the first for loop in the c code example, where instead of a fixed amount of iterations (i.e. 8), I use a
+while loop to consistently check the buffer. Additionally, we add a busy-wait loop to ensure the software buffer is ready for a write.
+
+An implementation could look as follows:
+
+// declare software buffer variables
+extern volatile uint8_t * sft_buffer;
+extern volatile uint8_t * sft_buffer_status; // LSB=1 <-> ready
+
+while(1) {
+    while((*uart_status & UART_STATUS_RX_READY_MASK) == 0);
+    while((*sft_buffer_status & 0x1) == 0);
+    *sft_buffer = *(uint8_t*)uart_rc_data;
+}
+
+One potential issue with this solution is that we are constantly busy-waiting, and that the software buffer can only
+receive 1 byte at a time.
+
+############################################################

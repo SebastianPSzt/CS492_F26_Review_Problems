@@ -1,0 +1,34 @@
+####################
+Assumptions:
+- A UART peripheral is mapped to the address space via MMIO
+- Consider the given C code and corresponding assembly
+
+Potential Questions:
+- Given a different C program and its assembly, ask students to identify which operations are considered access to UART memory vs.
+process memory
+
+- 
+
+- Give an equation that represents the amount of cycles in the for loop
+ -> solution: attempt to somehow make it log?
+####################
+
+
+####################
+
+Specification Example:
+- Assume 32-bit address-space
+- base address for mapped registers from UART port: 0x10000000
+- Each register given 4 bytes, but has capacity of 1 byte
+
+Layout:
++0 status
++4 tx_data (write)
++8 rx_data (read)
+
+Status masks:
+- 0x01 - tx_data empty
+- 0x02 - rx_data ready
+- ... - error codes
+
+####################

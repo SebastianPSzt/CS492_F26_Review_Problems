@@ -1,0 +1,60 @@
+############################################################
+
+Part 0:
+- None. The entire virtual memory image is duplicated and given to the child process, 
+so while they start at the same values, modifying one does not impact the other
+
+############################################################
+
+Part 1:
+- 3 processes (1p, 2c both spawned by p)
+
+
+############################################################
+
+Part 2:
+- Parent process: 1, 2
+- Child process1: 0, 0
+- Child process2: _, 1
+
+############################################################
+
+
+
+
+
+
+
+
+
+
+
+OLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLDOLD
+
+Part 2:
+The first print has the possible orderings: (2!)
+- 10
+- 01
+The second print has the possible orderings: (3!)
+- 201
+- 210
+- 012
+- 021
+- 102
+- 120
+
+Thus there are 12 possible orderings:
+- 10 201
+- 10 210
+- 10 012
+- 10 021
+- 10 102
+- 10 120
+- 01 201
+- 01 210
+- 01 012
+- 01 021
+- 01 102
+- 01 120
+
+############################################################
