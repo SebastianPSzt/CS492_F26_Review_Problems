@@ -1,17 +1,288 @@
 \documentclass[14pt, a4paper]{article}
 
-\title{Test}
+\usepackage{listings}
+\usepackage{xcolor}
+
+% ---------- Colors ----------
+\definecolor{codeblue}{RGB}{0,90,160}
+\definecolor{codecyan}{RGB}{0,130,140}
+\definecolor{codegreen}{RGB}{60,130,75}
+\definecolor{codeorange}{RGB}{180,90,30}
+\definecolor{codepurple}{RGB}{130,70,150}
+\definecolor{codenumber}{RGB}{120,120,120}
+\definecolor{codeframe}{RGB}{190,200,210}
+
+% ---------- C Style ----------
+\lstdefinestyle{cstyle}{
+    language=C,
+    basicstyle=\ttfamily\fontsize{8.5}{7.5}\selectfont\color{black}, 
+    keywordstyle=\color{codeblue}\bfseries,
+    commentstyle=\color{codegreen},
+    stringstyle=\color{codeorange},
+    morekeywords={volatile},
+    emph={uint8_t,uint16_t,uint32_t,uint64_t,size_t, pid_t},
+    emphstyle=\color{codecyan},
+    emph={[2]UART_STATUS_TX_EMPTY_MASK,UART_STATUS_RX_READY_MASK},
+    emphstyle={[2]\color{codepurple}},
+    numbers=left,
+    numberstyle=\tiny\color{codenumber},
+    numbersep=7pt,
+    showstringspaces=false,
+    showspaces=false,
+    showtabs=false,
+    breaklines=true,
+    keepspaces=true,
+    tabsize=4,
+    frame=single,
+    rulecolor=\color{codeframe},
+    framerule=0.5pt,
+    xleftmargin=18pt,
+    framexleftmargin=8pt,
+    columns=fullflexible,
+    aboveskip=3pt,
+    belowskip=3pt
+}
+
+% ---------- ARM Assembly Language ----------
+\lstdefinelanguage{ARM}{
+    morekeywords={LDR,LDRB,STR,STRB,MOV,ADD,SUB,AND,CMP,BEQ,BNE},
+    sensitive=true,
+    morecomment=[l]{@}
+}
+
+% ---------- Assembly Style ----------
+\lstdefinestyle{asmstyle}{
+    language=ARM,
+    basicstyle=\ttfamily\fontsize{7.5}{7.5}\selectfont\color{black},
+    keywordstyle=\color{codepurple}\bfseries,
+    commentstyle=\color{codegreen},
+    numbers=left,
+    numberstyle=\tiny\color{codenumber},
+    numbersep=7pt,
+    showstringspaces=false,
+    showspaces=false,
+    showtabs=false,
+    breaklines=true,
+    keepspaces=true,
+    tabsize=4,
+    frame=single,
+    rulecolor=\color{codeframe},
+    framerule=0.5pt,
+    xleftmargin=18pt,
+    framexleftmargin=8pt,
+    columns=fullflexible,
+    aboveskip=3pt,
+    belowskip=3pt
+}
+
+\title{CS492 Fall 2026 Unit Exam 1 Review}
 \author{Sebastian Sztolberg}
 
 \begin{document}
 
 \maketitle
 
-Problem Concepts
+\section{MMIO and Cycle-Counting}
+
+\subsection*{Given}
+
+Assume the following specifications:
+
+\begin{itemize}
+    \item UART peripheral mapped to physical memory (MMIO)
+    \item 32-bit address-space
+    \item Base address: \texttt{0x10000000}
+    \item Each register allocated 4 bytes
+    \item Data may only be transmitted/received \textbf{1 byte} at a time
+    \item MMIO operations take 10 cycles, all other operations take 1 cycle
+\end{itemize}
+
+\vspace{3mm}
+
+\noindent
+\textbf{Register Specification}
+
+\begin{center}
+\begin{tabular}{c|c|l}
+    \textbf{Offset} & \textbf{Register} & \textbf{Description} \\
+    \hline
+    \texttt{+0x00} & status & Status register \\
+    \texttt{+0x04} & tx\_data & Transmit to port \\
+    \texttt{+0x08} & rx\_data & Receive from port
+\end{tabular}
+\end{center}
+
+\vspace{3mm}
+
+\noindent
+\textbf{Status Register Bit Masks}
+
+\begin{center}
+\begin{tabular}{c|l}
+    \textbf{Mask} & \textbf{Meaning} \\
+    \hline
+    \texttt{0x01} & tx\_data empty \\
+    \texttt{0x02} & rx\_data ready
+\end{tabular}
+\end{center}
+
+\vspace{5mm}
+
+\newpage
+
+\subsection*{Code}
+
+\begin{lstlisting}[style=cstyle]
+#define UART_STATUS_TX_EMPTY_MASK 0x01
+#define UART_STATUS_RX_READY_MASK 0x02
+
+int main(void) {
+    volatile uint32_t * uart_status =
+        (volatile uint32_t*)(0x10000000);
+
+    volatile uint32_t * uart_tx_data =
+        (volatile uint32_t*)(0x10000000 + 0x04);
+
+    volatile uint32_t * uart_rx_data =
+        (volatile uint32_t*)(0x10000000 + 0x08);
+
+    uint8_t w[8];
+
+    for (int i = 0; i < 8; i++) {
+        while((*uart_status & UART_STATUS_RX_READY_MASK) == 0);
+
+        w[i] = *(uint8_t*)(uart_rx_data);
+    }
+
+    for (int j = 0; j < 8; j++) {
+        while((*uart_status & UART_STATUS_TX_EMPTY_MASK) == 0);
+
+        *uart_tx_data = *(volatile uint32_t*)(&(w[j]));
+    }
+
+    return 0;
+}
+\end{lstlisting}
+
+\vspace{5mm}
+
+\subsection*{Corresponding Function Body Assembly:}
+
+\begin{lstlisting}[style=asmstyle]
+    LDR r1, =0x10000000     @ base address
+    LDR r2, =w              @ word array address
+
+    MOV r0, #8              @ loop 1 counter
+
+for_loop1:
+while_loop1:
+    LDR r3, [r1]
+    AND r3, r3, 0x02
+    CMP r3, #0
+    BEQ while_loop1
+
+    LDRB r3, [r1, #8]
+    STRB r3, [r2]
+
+    ADD r2, r2, #1
+    SUB r0, r0, #1
+    CMP r0, #0
+    BNE for_loop1
+
+
+    LDR r2, =w              @ reload word arr base addr
+    MOV r0, #8              @ reset loop counter
+
+
+for_loop2:
+while_loop2:
+    LDR r3, [r1]            @ load status register
+    AND r3, r3, 0x01        @ apply tx_data bitmask
+    CMP r3, 0               @ cmp
+    BEQ while_loop2         @ keep iterating if not ready
+
+    LDRB r3, [r2]           @ read w[i]
+    STRB r3, [r1, #4]       @ store in tx_data
+
+    ADD r2, r2, #1
+    SUB r0, r0, #1
+    CMP r0, #0
+    BNE for_loop2
+\end{lstlisting}
+
+\subsection*{Questions}
+
 \begin{enumerate}
-\item{MMIO/PMIO code (C/assembly) with corresponding questions}
-\item{Threads/processes fork question}
-\item{System calls question}
+    \item \textbf{What is the program doing?}
+
+    \vspace{15mm}
+
+    \item \textbf{Under the assumption that both while loops take the same
+    amount of cycles, will both for loops take the same amount of cycles?
+    Show your work.}
+
+    \vspace{25mm}
+
+    \item \textbf{If for each for-loop iteration, the while loop iterates
+    10 times, how many cycles will it take to complete the function body?}
+
+    \begin{center}
+        \textit{Assume the successful read/write occurs on the 11th cycle.}
+    \end{center}
+
+    \vspace{30mm}
+
+    \item \textbf{How would we implement a function that constantly waits
+    to receive new data from the port, and then transmits it to a 1-byte
+    software buffer that can be read by some external process?}
+
+    Give C-style pseudocode based on the C code above.
+
+    \vspace{35mm}
+\end{enumerate}
+
+\newpage
+
+\section{Fork() Behavior}
+
+\begin{lstlisting}[style=cstyle]
+int main(int argc, char* argv[]) {
+    pid_t p1;
+    pid_t p2;
+
+    uint8_t x = 0;
+
+    if ((p1 = fork())) {
+        x++;
+    }
+
+    printf("%u\n", x);
+
+    if (p1 && (p2 = fork())) {
+        x++;
+    }
+
+    printf("%u\n", x);
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection*{Questions}
+
+\begin{enumerate}
+\item \textbf{Upon a call to fork(), what elements of the virtual memory image are shared between the parent and child? Explain.}
+
+\vspace{15mm}
+
+\item \textbf{How many processes are there in total? (include the parent)}
+
+\vspace{15mm}
+
+\item \textbf{List the prints produced by each process individually}
+
+\vspace{15mm}
+
 \end{enumerate}
 
 \end{document}
