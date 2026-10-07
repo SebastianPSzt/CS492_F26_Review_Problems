@@ -23,7 +23,10 @@ There are 8 characters so:
 8 * 158 = 1264 cycles
 
 Since the transmission is an exact mirror:
-1264*2 = 2528 cycles total
+1264*2 = 2528 cycles
+
+Finally, we add misc. instructions' cycles
+2528 + 14 = 2542
 
 ############################################################
 
