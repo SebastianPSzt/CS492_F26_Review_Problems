@@ -1,0 +1,12 @@
+1: mention entire format (review, quiz, lectures, etc.)
+
+2: mention that students should share questions as it might benefit more than just them
+
+3: share document for people to follow along
+
+4: format:
+ - go through prereq knowledge (i.e. assumptions, offset, bitmasks)
+ - Pull up code, allow students 1-2 minutes to digest the code
+ - Go question by question (1-2 minutes of silence) and then allow students to answer
+ - Once students answer question, I will answer and explain why it is doing that (i.e. explain what program doing -> go through code)
+  -> answer any questions based on this

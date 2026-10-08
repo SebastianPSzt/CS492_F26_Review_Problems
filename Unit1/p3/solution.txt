@@ -1,0 +1,48 @@
+############################################################
+
+Problem Summary:
+The parent process spawns the first child and increments n by 1 (n = 1). p1 becomes child1's PID for parent
+
+Parent and child1 both print (1, 0 respsectively)
+
+Child1 spawns Child2, both increment n by 2 (n = 2 for both). p2 becomes child2's PID for child1
+
+Child2 replaces current process with helper.
+
+All three processes now print in the following order:
+- Child2 prints 3
+- Child1 prints 2
+- Parent prints 1
+
+Hypothetically, all of the above can happen without Parent doing its first print until after c1 and c2 are done
+
+############################################################
+
+Part 0:
+
+execve(char*, char*) is a function that replaces the current virtual process image with that of the provided executable
+-> v - vector, pass an array of arguments that is null terminated
+-> p - PATH, OS will search paths in PATH os environmental variable to find the provided executable (i.e. "ls")
+
+pid_t wait(int*) prevents ZOMBIE processes. A parent process calls wait() to yield until a child process exits
+
+############################################################
+
+Part 1:
+3 processes
+The parent, child1 (spawned by parent), and child2 (spawned by child1 and executes ./helper)
+
+############################################################
+
+Part 2:
+Parent: 1, 1
+Child1: 0, 2
+Child2: _, 3
+
+############################################################
+
+Part 3:
+l - arguments are passed in a comma-separated list as SEPARATE arguments
+v - arguments are passed in a single argument, an array of strings
+p - if file name doesn't contain '/', system will search directories in PATH env var.
+e - custom array of environmental variables rather than inheriting current system's environment

@@ -5,9 +5,16 @@ MMIO Question:
 
 Fork Question:
 - pthreads instead? this should be fair game
-- Harder fork question !!!!
 
 General:
 - Quiz MCQs
 - Lecture Notes
 - Quiz FRQs
+
+Speedup Upperbound Equation:
+1 / (S + (P/N))
+S = serial portion
+P = parallel portion
+N = #cores
+
+Note on how serial portion disproportionately affects speedup and acts as the speedup bound

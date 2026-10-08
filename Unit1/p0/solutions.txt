@@ -1,0 +1,14 @@
+############################################################
+
+Part 0:
+Based on the assembly, we can see that there are 3 MMIO operations and 6 regular operations.
+Thus, it takes a total of 3(10) + 6(1) = 36 cycles to complete given assembly instructions.
+
+############################################################
+
+Part 1:
+We want to achieve 20% cpu utilization, and thus need to fill up (.2) * 200,000 = 40,000 cycles. We know each write takes 200 cycles,
+So we can do 40,000 / 200 to get 200 write operations. Thus, it would take 200 write operations every second
+to achieve 20% CPU utilization.
+
+############################################################

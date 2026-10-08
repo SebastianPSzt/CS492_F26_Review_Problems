@@ -20,9 +20,9 @@
     commentstyle=\color{codegreen},
     stringstyle=\color{codeorange},
     morekeywords={volatile},
-    emph={uint8_t,uint16_t,uint32_t,uint64_t,size_t, pid_t},
+    emph={uint8_t,uint16_t,uint32_t,uint64_t,size_t, pid_t, pthread_t},
     emphstyle=\color{codecyan},
-    emph={[2]UART_STATUS_TX_EMPTY_MASK,UART_STATUS_RX_READY_MASK},
+    emph={[2]UART_STATUS_TX_EMPTY_MASK,UART_STATUS_RX_READY_MASK,pthread_create,pthread_join,malloc},
     emphstyle={[2]\color{codepurple}},
     numbers=left,
     numberstyle=\tiny\color{codenumber},
@@ -81,6 +81,128 @@
 \begin{document}
 
 \maketitle
+
+\section{Intro to MMIO}
+
+\subsection*{Given}
+
+\begin{itemize}
+    \item UART peripheral mapped to physical memory via MMIO
+    \item 16-bit address-space
+    \item Base address: \texttt{0x1000}
+    \item Each register is mapped to 1 byte
+    \item MMIO operations take 10 cycles
+    \item All other operations take 1 cycle
+\end{itemize}
+
+\vspace{3mm}
+
+\noindent
+\textbf{Register Specification}
+
+\begin{center}
+\begin{tabular}{c|c|l}
+    \textbf{Offset} & \textbf{Register} & \textbf{Description} \\
+    \hline
+    \texttt{+0x00} & status & Status register \\
+    \texttt{+0x01} & tx\_data & Transmit to port \\
+    \texttt{+0x02} & rx\_data & Receive from port
+\end{tabular}
+\end{center}
+
+\vspace{3mm}
+
+\noindent
+\textbf{Status Register Bit Masks}
+
+\begin{center}
+\begin{tabular}{c|l}
+    \textbf{Mask} & \textbf{Meaning} \\
+    \hline
+    \texttt{0x01} & tx\_data empty \\
+    \texttt{0x02} & rx\_data ready
+\end{tabular}
+\end{center}
+
+\vspace{5mm}
+
+\noindent
+\textbf{Bit Mask Example}
+
+\begin{center}
+\begin{tabular}{c|c}
+    \textbf{Value} & \textbf{Binary} \\
+    \hline
+    Status register ($s$) & \texttt{01010011} \\
+    tx\_data mask ($t$) & \texttt{00000001} \\
+    $s \mathbin{\&} t$ & \texttt{00000001}
+\end{tabular}
+\end{center}
+
+\vspace{2mm}
+
+\noindent
+The result extracts the single bit representing whether
+\texttt{tx\_data} is empty and ready for transmission.
+
+\begin{itemize}
+    \item Nonzero result $\rightarrow$ \texttt{tx\_data} is empty and ready to write
+    \item Zero result $\rightarrow$ \texttt{tx\_data} is not empty and not ready to write
+\end{itemize}
+
+\newpage
+
+\subsection*{Code}
+
+\begin{lstlisting}[style=cstyle]
+int main(void) {
+    // Declared volatile to prevent compiler optimizations (we always want it to read/write to memory)
+    volatile uint8_t * restrict status = (volatile uint8_t *)0x1000;
+    volatile uint8_t * restrict tx_data = (volatile uint8_t *)0x1001;
+
+    char c[1] = "H";
+
+    while(!(*status & 0x01));
+    *tx_data = *(volatile uint8_t *)(c);
+    
+    exit(EXIT_SUCCESS);
+}
+\end{lstlisting}
+
+\subsection*{Corresponding Assembly}
+
+\begin{lstlisting}[style=asmstyle]
+    LDR r0, =0x1000         @ Load base address into register r0
+    LDR r1, =c              @ Load character address into register r1
+
+while_loop:
+    LDR r2, [r0]            @ Load current status into register r2
+    AND r2, r2, 0x01        @ Apply TX_data empty bitmask to status
+    CMP r2, #0              @ Check if TX_data is empty and ready for write
+    BEQ while_Loop          @ Loop if not empty
+
+    LDR r3, [r1]            @ Load the character into register r3
+    STR r3, [r0, #1]        @ Store the character in the TX_data register
+    
+    RET                     @ Return from the function call
+\end{lstlisting}
+
+\subsection*{Questions}
+
+\begin{enumerate}
+
+\item \textbf{How many cycles does the following program body take?}
+
+\vspace{15mm}
+
+\item \textbf{Given the fact that the CPU can process 200k cycles a second, and a full write takes 200 cycles, how many write operations do we
+need to do to achieve 20 percent CPU utilization}
+
+\vspace{15mm}
+
+\end{enumerate}
+
+\newpage
 
 \section{MMIO and Cycle-Counting}
 
@@ -198,7 +320,7 @@ for_loop2:
 while_loop2:
     LDR r3, [r1]            @ load status register
     AND r3, r3, 0x01        @ apply tx_data bitmask
-    CMP r3, 0               @ cmp
+    CMP r3, #0               @ cmp
     BEQ while_loop2         @ keep iterating if not ready
 
     LDRB r3, [r2]           @ read w[i]
@@ -243,7 +365,7 @@ while_loop2:
 
 \newpage
 
-\section{Fork() Behavior}
+\section{Fork Behavior}
 
 \begin{lstlisting}[style=cstyle]
 int main(int argc, char* argv[]) {
@@ -280,6 +402,118 @@ int main(int argc, char* argv[]) {
 \vspace{15mm}
 
 \item \textbf{List the prints produced by each process individually}
+
+\vspace{15mm}
+
+\end{enumerate}
+
+\newpage
+
+\section{Fork, Exec, Wait}
+
+\begin{lstlisting}[style=cstyle]
+int main(void) {
+    pid_t p1;
+    pid_t p2;
+    
+    int n = 0;
+
+    if ((p1 = fork())) {
+        n++;
+    }
+
+    printf("%d\n", n);
+
+    if (!p1) {
+        p2 = fork();
+        n += 2;
+    }
+
+    if (!p2) {
+        execvp("./helper", NULL);
+    }
+
+    if (p1) {
+        wait(NULL);
+        printf("%d\n", n);
+    } else {
+        wait(NULL);
+        printf("%d\n", n);
+    }
+
+    exit(EXIT_SUCCESS);
+}
+\end{lstlisting}
+
+\begin{lstlisting}[style=cstyle]
+// helper.c code
+int main(void) {
+    printf("%d\n", 3);
+    exit(EXIT_SUCCESS);
+}
+\end{lstlisting}
+
+\subsection*{Questions}
+
+\begin{enumerate}
+
+\item \textbf{Explain what execvp() and wait() do}
+
+\vspace{15mm}
+
+\item \textbf{How many processes are spawned during the execution of this program? (include the parent)}
+
+\vspace{15mm}
+
+\item \textbf{Please give the independent strings printed by each process}
+
+\vspace{15mm}
+
+\item \textbf{Bonus: what do the suffixes of exec signify? i.e. [v, l] and [p, e]}
+
+\vspace{15mm}
+
+\end{enumerate}
+
+\newpage
+
+\section{PThreads and Thread Shared Resources}
+
+\begin{lstlisting}[style=cstyle]
+int main(void) {
+    pthread_t t1;
+    pthread_t t2;
+
+    int* np = (int*)malloc(sizeof(int));
+    *np = 0;
+
+
+    pthread_create(&t1, NULL, helper, (void*)np);
+    pthread_create(&t2, NULL, helper, (void*)np);
+
+    pthread_join(t1, NULL);
+    pthread_join(t2, NULL);
+
+    *np += 1;
+
+    printf("%d\n", *np);
+
+    free(np);
+    exit(EXIT_SUCCESS);
+}
+\end{lstlisting}
+
+\begin{enumerate}
+
+\item \textbf{What are some differences between processes and threads?}
+
+\vspace{15mm}
+
+\item \textbf{What values are printed by the program above? Assume atomicity per line of C code.}
+
+\vspace{15mm}
+
+\item \textbf{We would like to truly parallelize our program. 25 percent of our program is parallelizable. We have 4 CPU cores at our disposal. Please calculate the CPU speedup.}
 
 \vspace{15mm}
 

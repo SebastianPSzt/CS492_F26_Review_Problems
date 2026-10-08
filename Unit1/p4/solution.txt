@@ -1,0 +1,27 @@
+############################################################
+
+Part 0:
+One of the biggest differences between threads and processes is that of which resources are shared.
+
+Processes:
+- Spawned processes inherit open file descriptors
+- Separate virtual memory image
+
+Threads:
+- Share global variables, heap, virtual address space, and other process-level resources (FDs)
+- Separate stacks, register states, thread-local storage, and TID
+
+############################################################
+
+Part 1:
+There is a potential that the threads interweave, where both increment the shared variable and then print, thus we have two possibilities:
+2, 2, 3
+1, 2, 3
+
+############################################################
+
+Part 2:
+We utilize the formula (1) / (S + (P/N)) where S = serial portion, P = parallel portion, and N = #CPU_Cores.
+We thus calculate (1) / (0.75 + (0.25/4)) = 1.23x speedup.
+
+############################################################
